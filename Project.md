@@ -1,18 +1,19 @@
-# Project Name
+# StepCounter - Ứng dụng đếm bước chân với Gamification
 
 ## Tổng quan
 
-Đây là dự án mẫu được tạo để minh họa cấu trúc hướng dẫn cho AI. Mục tiêu của dự án là [mô tả mục tiêu dự án].
+StepCounter là ứng dụng Android giúp người dùng theo dõi số bước chân và quãng đường di chuyển hàng ngày. Ứng dụng lưu lại lịch sử quá trình chạy/đi bộ, cung cấp bảng xếp hạng hàng tuần, và sử dụng gamification (xu thưởng, thành tích) để tăng tính gắn kết của người dùng. Nguồn doanh thu chính của ứng dụng đến từ quảng cáo.
 
 ## Kiến trúc hệ thống
 
-Hệ thống được xây dựng theo kiến trúc [mô tả kiến trúc chính: microservices, monolithic, etc]. Có các thành phần chính sau:
+Hệ thống được xây dựng theo kiến trúc MVVM (Model-View-ViewModel) với các thành phần chính sau:
 
-- Frontend: [Công nghệ frontend]
-- Backend: [Công nghệ backend]
-- Database: [Loại database]
-- Authentication: [Phương thức xác thực]
-- [Các thành phần khác]
+- Frontend: Kotlin, Android Jetpack Components, XML layouts
+- Backend: SQLite/Room Persistence Library cho lưu trữ local
+- Gamification: Hệ thống thành tích, pet ảo, thử thách
+- Sensors: SensorManager API để đếm bước chân và nhận diện hoạt động
+- Analytics: MPAndroidChart cho biểu đồ và phân tích
+- Notification: AlarmManager và NotificationManager
 
 ### Sơ đồ kiến trúc
 
@@ -20,24 +21,28 @@ Các thành phần kết nối với nhau theo sơ đồ được mô tả trong
 
 ## Thành phần chính
 
-- **Frontend**: Giao diện người dùng - [Chi tiết trong instructions/Frontend.md]
-- **Backend API**: Xử lý logic nghiệp vụ - [Chi tiết trong instructions/API_Docs.md]
-- **Database**: Lưu trữ dữ liệu - [Chi tiết trong instructions/Database.md]
-- **Authentication**: Xác thực và phân quyền - [Chi tiết trong instructions/Auth.md]
-- **[Thành phần khác]**: [Mô tả ngắn] - [Liên kết đến tài liệu chi tiết]
+- **UI Layer**: Giao diện người dùng và tương tác - Activities và Fragments
+- **ViewModel Layer**: Xử lý logic nghiệp vụ và quản lý trạng thái
+- **Repository Layer**: Cấp trung gian giữa ViewModel và Data sources
+- **Data Layer**: Xử lý dữ liệu (Room Database, SharedPreferences)
+- **Service Layer**: StepCounterService chạy nền để đếm bước
+- **Gamification System**: Quản lý thành tích, xu thưởng và pet ảo
+- **Notification System**: Gửi thông báo động lực và nhắc nhở
 
 ## Quy trình làm việc
 
-1. Frontend gọi API từ Backend
-2. Backend xác thực người dùng qua Authentication
-3. Backend xử lý logic và tương tác với Database
-4. Backend trả về kết quả cho Frontend
-5. [Các bước khác trong quy trình]
+1. Service Layer nhận dữ liệu từ SensorManager để đếm bước chân
+2. Data Layer lưu trữ dữ liệu bước chân, quãng đường và hoạt động
+3. Repository Layer cung cấp dữ liệu cho ViewModel
+4. ViewModel Layer xử lý logic và cập nhật UI
+5. Gamification System theo dõi tiến độ và trao thưởng
+6. Notification System gửi thông báo dựa trên hoạt động người dùng
+7. UI Layer hiển thị dữ liệu, thành tích và tiến độ người dùng
 
 ## Hướng dẫn phát triển
 
 - [Hướng dẫn cài đặt](Instruction.md)
-- [API Endpoints](instructions/API_Docs.md)
+- [API Sensors](instructions/API_Docs.md)
 - [Hướng dẫn triển khai](instructions/Deployment.md)
 
 ## Tài liệu tham khảo

@@ -70,7 +70,7 @@ curl --location 'https://ai.dreamapi.net/v1/chat-messages' \
 
 Example with json format
 
-````
+```
 {
     "event": "message",
     "task_id": "3d7b89ee-f3df-4e17-bef6-971e7565abc6",
@@ -96,11 +96,11 @@ Example with json format
         }
     },
     "created_at": 1741828937
-}```
+}
+```
 
 ### Chat với file
-````
-
+```
 curl --location 'https://ai.dreamapi.net/v1/chat-messages' \
 --header 'Authorization: Bearer app-dify-api-key' \
 --header 'Content-Type: application/json' \
@@ -116,7 +116,6 @@ curl --location 'https://ai.dreamapi.net/v1/chat-messages' \
 "url": "https://c.files.bbci.co.uk/3FE8/production/_104706361_1df2aee2-0fb6-4571-ab4a-8caf3505b856.jpg"
 }]
 }'
-
 ```
 
 ### Upload tệp tạm thời
@@ -124,3 +123,303 @@ Method: POST
 Params: file=/path/to/test.jpg
 URL: https://tmpfiles.org/api/v1/upload
 ```
+
+# Tài Liệu API & Tích Hợp Sensors
+
+## Tổng Quan
+
+Tài liệu này mô tả chi tiết về các API và cảm biến (sensors) được sử dụng trong ứng dụng StepCounter. Các API này bao gồm SensorManager để đếm bước chân, API lưu trữ dữ liệu, và các API khác liên quan đến chức năng gamification và theo dõi hoạt động.
+
+## Sensors API
+
+### Step Counter Sensor
+
+Android cung cấp cảm biến bước chân tích hợp thông qua SensorManager API, cho phép ứng dụng theo dõi số bước chân mà người dùng đã đi được.
+
+#### Thông Tin Cơ Bản
+
+- **Loại cảm biến**: `Sensor.TYPE_STEP_COUNTER`
+- **Đơn vị**: Số bước (steps)
+- **Chế độ hoạt động**: Hardware-based, tiêu thụ ít pin
+- **Thời điểm ra mắt**: Android 4.4 (API level 19)
+- **Tính sẵn có**: Không phải tất cả thiết bị đều hỗ trợ
+
+#### Đăng Ký Lắng Nghe Cảm Biến
+
+Để lắng nghe sự kiện từ cảm biến bước chân, cần thực hiện các bước sau:
+
+1. Lấy tham chiếu tới SensorManager
+2. Đăng ký SensorEventListener
+3. Xử lý sự kiện trong phương thức onSensorChanged()
+4. Hủy đăng ký listener khi không cần thiết
+
+#### Xử Lý Đặc Biệt
+
+- **Khởi động lại thiết bị**: Cảm biến bước chân sẽ không reset về 0 sau khi khởi động lại thiết bị. Thay vào đó, nó sẽ tiếp tục đếm từ giá trị cuối cùng trước khi khởi động lại.
+- **Cơ chế tiết kiệm pin**: Đăng ký với SENSOR_DELAY_NORMAL để tiết kiệm pin
+- **Thiết bị không hỗ trợ**: Cung cấp giải pháp thay thế sử dụng `TYPE_ACCELEROMETER`
+
+#### Best Practices
+
+- Sử dụng Foreground Service để đảm bảo đếm liên tục
+- Lưu trữ giá trị ban đầu để tính toán delta
+- Sử dụng SharedPreferences để lưu trữ số bước giữa các phiên
+- Đặt rate limit cho các cập nhật UI (không cần cập nhật UI mỗi khi có sự kiện)
+
+### Step Detector Sensor
+
+Ngoài Step Counter, Android còn cung cấp Step Detector để phát hiện mỗi bước chân riêng lẻ.
+
+- **Loại cảm biến**: `Sensor.TYPE_STEP_DETECTOR`
+- **Đơn vị**: Sự kiện (mỗi sự kiện = 1 bước)
+- **Khác biệt với Step Counter**: Trả về một sự kiện cho mỗi bước, thay vì tổng số bước
+
+### Activity Recognition API
+
+Để nhận diện loại hoạt động của người dùng (đi bộ, chạy, đạp xe, đứng yên), sử dụng Activity Recognition API.
+
+#### Cơ Bản
+
+- **Lớp chính**: ActivityRecognitionClient
+- **Các loại hoạt động**:
+  - DetectedActivity.STILL (đứng yên)
+  - DetectedActivity.WALKING (đi bộ)
+  - DetectedActivity.RUNNING (chạy)
+  - DetectedActivity.ON_BICYCLE (đạp xe)
+  - DetectedActivity.IN_VEHICLE (trong phương tiện)
+  - DetectedActivity.TILTING (nghiêng)
+  - DetectedActivity.UNKNOWN (không xác định)
+
+#### Quy Trình Sử Dụng
+
+1. Khởi tạo ActivityRecognitionClient
+2. Tạo PendingIntent để nhận kết quả
+3. Đăng ký nhận cập nhật hoạt động với tần suất phù hợp
+4. Xử lý kết quả trong BroadcastReceiver hoặc Service
+
+## Room Persistence Library
+
+Room cung cấp một lớp trừu tượng trên SQLite giúp truy cập cơ sở dữ liệu dễ dàng hơn trong ứng dụng Android.
+
+### Thành Phần Chính
+
+- **Entity**: Đại diện cho một bảng trong cơ sở dữ liệu
+- **DAO (Data Access Object)**: Chứa các phương thức truy cập dữ liệu
+- **Database**: Lớp trừu tượng giữ thông tin về cơ sở dữ liệu
+
+### Entity Chính Trong Ứng Dụng
+
+#### StepEntity
+
+Lưu trữ thông tin về số bước chân hàng ngày:
+
+- `id`: Khóa chính
+- `date`: Ngày ghi nhận (dạng timestamp)
+- `steps`: Tổng số bước trong ngày
+- `distance`: Quãng đường đi được (tính bằng mét)
+- `calories`: Calo tiêu hao ước tính
+- `activeMinutes`: Số phút hoạt động
+
+#### ActivityEntity
+
+Lưu trữ thông tin về các hoạt động cụ thể:
+
+- `id`: Khóa chính
+- `type`: Loại hoạt động (đi bộ, chạy, đạp xe)
+- `startTime`: Thời gian bắt đầu
+- `endTime`: Thời gian kết thúc
+- `steps`: Số bước trong hoạt động
+- `distance`: Quãng đường (mét)
+- `avgSpeed`: Tốc độ trung bình (mét/giây)
+
+#### AchievementProgressEntity
+
+Theo dõi tiến độ của người dùng đối với các thành tích:
+
+- `id`: Khóa chính
+- `achievementId`: ID của thành tích
+- `progress`: Tiến độ hiện tại
+- `unlocked`: Trạng thái đã mở khóa hay chưa
+- `unlockDate`: Ngày mở khóa
+
+### Database Migration
+
+- Cách xử lý thay đổi schema trong các phiên bản tiếp theo
+- Chiến lược bảo toàn dữ liệu khi nâng cấp
+- Testing migration để đảm bảo tính toàn vẹn dữ liệu
+
+### Queries Phổ Biến
+
+- Lấy tổng số bước trong một khoảng thời gian
+- Tìm các ngày hoạt động cao nhất/thấp nhất
+- Theo dõi tiến độ hàng tuần/hàng tháng
+- Tính toán thống kê như trung bình, max, min
+
+## WorkManager API
+
+WorkManager được sử dụng để lập lịch cho các tác vụ nền cần được đảm bảo thực hiện, ngay cả khi ứng dụng thoát hoặc thiết bị khởi động lại.
+
+### Use Cases
+
+- **Đồng bộ dữ liệu hàng ngày**: Lập lịch đồng bộ dữ liệu vào cuối ngày
+- **Tính toán và cập nhật thống kê**: Tính toán thống kê định kỳ
+- **Thông báo nhắc nhở**: Gửi thông báo nhắc nhở người dùng đi bộ
+- **Xóa dữ liệu cũ**: Dọn dẹp dữ liệu lâu ngày không cần thiết
+
+### Loại Công Việc
+
+- **OneTimeWorkRequest**: Công việc chỉ thực hiện một lần
+- **PeriodicWorkRequest**: Công việc lặp lại theo chu kỳ
+- **Chained Work Requests**: Chuỗi công việc theo thứ tự nhất định
+
+### Constraints
+
+- Chỉ chạy khi thiết bị đang sạc
+- Chỉ chạy khi có kết nối mạng
+- Chỉ chạy khi thiết bị rảnh (không sử dụng nhiều)
+
+## Notification API
+
+Notification API được sử dụng để hiển thị thông báo cho người dùng về tiến độ, thành tích, và nhắc nhở.
+
+### Notification Channels
+
+Từ Android 8.0 (API 26), cần phải tạo Notification Channels:
+
+- **Step Counter Channel**: Thông báo liên quan đến service chạy nền
+- **Achievement Channel**: Thông báo khi đạt thành tích
+- **Reminder Channel**: Thông báo nhắc nhở đi bộ
+- **Challenge Channel**: Thông báo về thử thách
+
+### Tạo Notification
+
+- Sử dụng NotificationCompat.Builder
+- Thêm hành động tùy chỉnh (ví dụ: "Xem thống kê")
+- Cung cấp PendingIntent để điều hướng khi người dùng nhấp vào
+- Sử dụng setBigPictureStyle() để hiển thị hình ảnh thành tích
+
+### Foreground Service Notification
+
+- Sử dụng Notification kèm theo trong Foreground Service
+- Hiển thị số bước hiện tại và tiến độ
+- Cung cấp nút tạm dừng/tiếp tục nếu cần
+
+## SharedPreferences API
+
+SharedPreferences được sử dụng để lưu trữ các cài đặt và dữ liệu nhỏ của ứng dụng.
+
+### Dữ Liệu Lưu Trữ
+
+- **Thông tin người dùng**: Chiều cao, cân nặng, độ dài sải chân
+- **Mục tiêu số bước**: Mục tiêu hàng ngày của người dùng
+- **Cài đặt thông báo**: Bật/tắt thông báo, thời gian nhận thông báo
+- **Tùy chọn theme**: Theme tùy chỉnh từ cửa hàng
+- **Trạng thái service**: Trạng thái của service đếm bước chân
+
+### Best Practices
+
+- Sử dụng EncryptedSharedPreferences cho dữ liệu nhạy cảm
+- Cung cấp giá trị mặc định cho tất cả các cài đặt
+- Sử dụng PreferenceScreen để tạo màn hình cài đặt tự động
+
+## Widget API
+
+API cho phép tạo widget hiển thị trên màn hình chính của thiết bị.
+
+### AppWidgetProvider
+
+- Tạo lớp kế thừa từ AppWidgetProvider
+- Triển khai onUpdate() để cập nhật UI widget
+- Sử dụng AppWidgetManager để cập nhật widget
+
+### Widget Updates
+
+- Sử dụng AlarmManager hoặc WorkManager để cập nhật định kỳ
+- Gửi Broadcast Intents khi số bước thay đổi
+- Tối ưu hóa tần suất cập nhật để tiết kiệm pin
+
+## Health Connect API (Android 13+)
+
+Từ Android 13, Google giới thiệu Health Connect - một nền tảng thống nhất để quản lý dữ liệu sức khỏe và thể dục.
+
+### Tính Năng
+
+- **Chia sẻ dữ liệu**: Chia sẻ dữ liệu giữa các ứng dụng sức khỏe
+- **Quyền được kiểm soát**: Người dùng có quyền kiểm soát đối với dữ liệu
+- **Đồng bộ đa thiết bị**: Đồng bộ hóa dữ liệu giữa các thiết bị
+
+### Tích Hợp
+
+- Đọc/ghi dữ liệu bước chân vào Health Connect
+- Lấy dữ liệu từ các ứng dụng khác (nếu được cấp quyền)
+- Cập nhật dữ liệu trong thời gian thực
+
+## API Giao Diện Người Dùng
+
+### RecyclerView
+
+- Sử dụng RecyclerView để hiển thị danh sách hoạt động
+- Tùy chỉnh LayoutManager (LinearLayoutManager, GridLayoutManager)
+- Tạo ItemDecoration để thêm dividers hoặc spacing
+
+### ViewPager2
+
+- Sử dụng ViewPager2 cho các màn hình onboarding
+- Sử dụng cho Navigation giữa các tab
+
+### ConstraintLayout
+
+- Sử dụng ConstraintLayout cho giao diện tùy chỉnh và hiệu suất
+- Tạo animation và chuyển động phức tạp
+
+### MotionLayout
+
+- Tạo animation phức tạp cho thành tích và thử thách
+- Sử dụng cho transitions giữa các trạng thái UI
+
+## Làm Việc Với Tài Nguyên
+
+### Drawables
+
+- Sử dụng Vector Drawables cho icons có thể mở rộng
+- Tạo Selector Drawables cho các trạng thái nút
+- Sử dụng Shape Drawables cho hình dạng đơn giản
+
+### Animations
+
+- Tạo các animation XML cho transitions
+- Sử dụng ObjectAnimator cho animations phức tạp
+- Sử dụng Lottie cho animations cao cấp
+
+## Debugging Sensors
+
+### Kiểm Tra Tính Khả Dụng
+
+Trước khi sử dụng cảm biến, cần kiểm tra xem thiết bị có hỗ trợ hay không:
+
+```
+SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+Sensor stepCounterSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+boolean isStepCounterAvailable = (stepCounterSensor != null);
+```
+
+### Logging Sensor Data
+
+- Sử dụng Logcat để ghi lại dữ liệu cảm biến trong quá trình phát triển
+- Tạo file log đặc biệt để theo dõi hoạt động cảm biến trong thời gian dài
+
+### Troubleshooting
+
+- **Không nhận được sự kiện bước chân**: Kiểm tra quyền, tần suất lấy mẫu, và các ứng dụng tiết kiệm pin
+- **Độ chính xác thấp**: Hiệu chỉnh với chiều dài sải chân, kiểm tra thủ công
+- **Tiêu thụ pin cao**: Tối ưu hóa tần suất lấy mẫu, sử dụng BatchMode nếu có thể
+
+## Tài Liệu Tham Khảo
+
+- [Android SensorManager](https://developer.android.com/reference/android/hardware/SensorManager)
+- [Step Counter Sensor](https://developer.android.com/reference/android/hardware/Sensor#TYPE_STEP_COUNTER)
+- [Room Persistence Library](https://developer.android.com/training/data-storage/room)
+- [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)
+- [Notifications](https://developer.android.com/guide/topics/ui/notifiers/notifications)
+- [App Widgets](https://developer.android.com/guide/topics/appwidgets/overview)
+- [Health Connect](https://developer.android.com/health-connect)
